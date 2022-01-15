@@ -1,0 +1,53 @@
+version: '3.2'
+
+services:
+  db:
+    image: mariadb
+    restart: always
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW --innodb-file-per-table=1 --skip-innodb-read-only-compressed
+    volumes:
+      - ./db:/var/lib/mysql
+    environment:
+      - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1
+      - MARIADB_DATABASE_FILE=/run/secrets/maria_db
+      - MARIADB_PASSWORD_FILE=/run/secrets/maria_user
+      - MARIADB_USER_FILE=/run/secrets/maria_password
+    secrets:
+      - maria_db
+      - maria_password
+      - maria_user
+
+  app:
+    image: nextcloud:23.0.0-apache
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - 8080:80
+    volumes:
+      - ./nextcloud:/var/www/html
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_DATABASE_FILE=/run/secrets/maria_db
+      - MYSQL_USER_FILE=/run/secrets/maria_user
+      - MYSQL_PASSWORD_FILE=/run/secrets/maria_password
+      - NEXTCLOUD_ADMIN_PASSWORD_FILE=/run/secrets/nextcloud_admin_password
+      - NEXTCLOUD_ADMIN_USER_FILE=/run/secrets/nextcloud_admin_user
+    secrets:
+      - nextcloud_admin_password
+      - nextcloud_admin_user
+      - maria_db
+      - maria_password
+      - maria_user
+
+secrets:
+  nextcloud_admin_password:
+    file: ./secrets/nextcloud_admin_password # put admin password to this file
+  nextcloud_admin_user:
+    file: ./secrets/nextcloud_admin_user # put admin username to this file
+  maria_db:
+    file: ./secrets/maria_db # put mariaql db name to this file
+  maria_password:
+    file: ./secrets/maria_password # put mariaql password to this file
+  maria_user:
+    file: ./secrets/maria_user # put mariaql username to this file

@@ -1,0 +1,71 @@
+name: Google Cloud Platform deployment
+on:
+  schedule:
+    - cron: "0 0 * * MON" # At 00:00 on Monday.
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+jobs:
+  deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: chrnorm/deployment-action@releases/v1
+        name: Create deployment
+        id: deployment
+        with:
+          token: "${{ github.token }}"
+          target_url: https://re-radio.tripham.dev/
+          environment: production
+
+      - name: Check out code
+        uses: actions/checkout@master
+
+      - name: Build docker image
+        env:
+          APP_IMAGE: ${{ secrets.DOCKER_HUB_APP_IMAGE }}
+        run: docker build -t ${APP_IMAGE} -f .gcloud/Dockerfile .
+
+      - name: Login to Docker Hub Registry
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
+        run: docker login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
+
+      - name: Push docker image
+        env:
+          APP_IMAGE: ${{ secrets.DOCKER_HUB_APP_IMAGE }}
+        run: docker push ${APP_IMAGE}
+
+      - uses: google-github-actions/setup-gcloud@master
+        with:
+          version: "271.0.0"
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          VM_INSTANCE: ${{ secrets.GCP_VM_INSTANCE }}
+          VM_USER: ${{ secrets.GCP_VM_USER }}
+          VM_ZONE: ${{ secrets.GCP_VM_ZONE }}
+        run: |
+          gcloud config set project ${PROJECT_ID}
+          gcloud compute scp .gcloud/docker-compose.yml .gcloud/deploy.sh ${VM_USER}@${VM_INSTANCE}:~ --zone=${VM_ZONE}
+          gcloud compute ssh ${VM_USER}@${VM_INSTANCE} --zone=${VM_ZONE} --command="sh ./deploy.sh"
+      
+      - name: Update deployment status (success)
+        if: success()
+        uses: chrnorm/deployment-status@releases/v1
+        with:
+          token: "${{ github.token }}"
+          target_url: https://re-radio.tripham.dev/
+          state: "success"
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+
+      - name: Update deployment status (failure)
+        if: failure()
+        uses: chrnorm/deployment-status@releases/v1
+        with:
+          token: "${{ github.token }}"
+          target_url: https://re-radio.tripham.dev/
+          state: "failure"
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
