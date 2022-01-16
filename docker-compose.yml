@@ -33,6 +33,7 @@ services:
       - MYSQL_PASSWORD_FILE=/run/secrets/maria_password
       - NEXTCLOUD_ADMIN_USER_FILE=/run/secrets/nextcloud_admin_user
       - NEXTCLOUD_ADMIN_PASSWORD_FILE=/run/secrets/nextcloud_admin_password
+      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_TRUSTED_DOMAINS}
     secrets:
       - nextcloud_admin_password
       - nextcloud_admin_user
