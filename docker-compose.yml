@@ -2,16 +2,16 @@ version: '3.2'
 
 services:
   db:
-    image: mariadb
-    restart: always
+    image: mariadb:10.7
+    restart: "${RESTART_POLICY:-always}"
     command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW --innodb-file-per-table=1 --skip-innodb-read-only-compressed
     volumes:
       - ./db:/var/lib/mysql
     environment:
       - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1
       - MARIADB_DATABASE_FILE=/run/secrets/maria_db
-      - MARIADB_PASSWORD_FILE=/run/secrets/maria_user
-      - MARIADB_USER_FILE=/run/secrets/maria_password
+      - MARIADB_USER_FILE=/run/secrets/maria_user
+      - MARIADB_PASSWORD_FILE=/run/secrets/maria_password
     secrets:
       - maria_db
       - maria_password
@@ -19,7 +19,7 @@ services:
 
   app:
     image: nextcloud:23.0.0-apache
-    restart: always
+    restart: "${RESTART_POLICY:-always}"
     depends_on:
       - db
     ports:
@@ -31,8 +31,8 @@ services:
       - MYSQL_DATABASE_FILE=/run/secrets/maria_db
       - MYSQL_USER_FILE=/run/secrets/maria_user
       - MYSQL_PASSWORD_FILE=/run/secrets/maria_password
-      - NEXTCLOUD_ADMIN_PASSWORD_FILE=/run/secrets/nextcloud_admin_password
       - NEXTCLOUD_ADMIN_USER_FILE=/run/secrets/nextcloud_admin_user
+      - NEXTCLOUD_ADMIN_PASSWORD_FILE=/run/secrets/nextcloud_admin_password
     secrets:
       - nextcloud_admin_password
       - nextcloud_admin_user
